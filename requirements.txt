@@ -1,0 +1,8 @@
+# RAG-Anything — полный исходный код лежит в vendor/RAG-Anything
+./vendor/RAG-Anything
+# Сервер AMANOGAWA
+fastapi
+uvicorn
+python-multipart
+python-dotenv
+openai
