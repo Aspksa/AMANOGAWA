@@ -1,5 +1,6 @@
 @echo off
 rem Run inside "cmd /k" so the window never closes by itself and errors stay visible.
+if /i "%~1"=="--check" goto check
 if /i "%~1"=="--inner" goto main
 cmd /k call "%~f0" --inner
 exit /b
@@ -9,8 +10,6 @@ setlocal
 title AMANOGAWA
 cd /d "%~dp0"
 
-set "PORT=8000"
-set "URL=http://127.0.0.1:%PORT%/"
 
 echo.
 echo    A M A N O G A W A
@@ -58,56 +57,21 @@ echo    1. Download Python 3.12 from https://www.python.org/downloads/
 echo    2. In the installer tick "Add python.exe to PATH" and press Install Now.
 echo    3. Run AMANOGAWA.BAT again.
 echo.
-echo    Without Python the site opens as a file: chat, documents and settings will not work.
-start "" "%~dp0index.html"
+echo    Python is required for chat, documents and settings.
 goto end
 
 :python
 echo    Python: %PY%
-set "VPY=%~dp0.venv\Scripts\python.exe"
-set "MARK=.venv\requirements.installed"
-rem The private .python copy belongs to this project: install packages straight into it.
-if /i "%PY:"=%"=="%~dp0.python\tools\python.exe" set "VPY=%~dp0.python\tools\python.exe" & set "MARK=.python\requirements.installed" & goto venv_ok
-
-rem 1. Virtual environment with RAG-Anything (first run takes a while).
-if exist "%VPY%" goto venv_ok
-echo    First run: creating .venv ...
-%PY% -m venv .venv
-if errorlevel 1 goto install_failed
-
-:venv_ok
-fc /b requirements.txt %MARK% >nul 2>nul && goto env
-echo    Installing RAG-Anything and dependencies. This can take 10+ minutes...
-echo.
-"%VPY%" -m pip --version >nul 2>nul || "%VPY%" -m ensurepip --upgrade
-"%VPY%" -m pip install --upgrade pip
-"%VPY%" -m pip install -r requirements.txt
-if errorlevel 1 goto install_failed
-copy /y requirements.txt %MARK% >nul
-
-:env
-rem 2. Settings (Cloud.ru key, models) live in .env on this computer.
-rem    They are edited on the site: Settings page (gear icon).
-if not exist ".env" copy /y ".env.example" ".env" >nul
-
-rem 3. Site + knowledge base API.
-echo.
-echo    Starting AMANOGAWA: %URL%
-echo    Close this window to stop the server.
-echo.
-set "OPEN_BROWSER=1"
-"%VPY%" -m server
-echo.
-echo    Server stopped. If it failed, port %PORT% may be busy - see the messages above.
+%PY% -m server.launcher
 goto end
 
-:install_failed
-echo.
-echo    Could not install RAG-Anything - see the errors above.
-echo    Starting the site without the knowledge base.
-echo.
-start "" /b cmd /c "ping -n 3 127.0.0.1 >nul & start "" %URL%"
-%PY% -m http.server %PORT% --bind 127.0.0.1
+:check
+setlocal
+cd /d "%~dp0"
+call :find_python
+if not defined PY exit /b 1
+%PY% -c "import server.launcher"
+exit /b %errorlevel%
 
 :end
 echo.
@@ -121,6 +85,7 @@ rem Each candidate runs real code: the "python" Store alias exists even without 
 set "PY="
 call :try_py "%~dp0.python\tools\python.exe"
 if defined PY exit /b
+py -3.12 -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul && set "PY=py -3.12" && exit /b
 py -3 -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul && set "PY=py -3" && exit /b
 python -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul && set "PY=python" && exit /b
 rem Not in PATH: look where installers put Python (registry first, then usual folders).

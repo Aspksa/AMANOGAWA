@@ -1,0 +1,50 @@
+name: AMANOGAWA checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: amanogawa-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    name: Fast (${{ matrix.os }}, Python ${{ matrix.python }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: '3.10'
+          - os: ubuntu-latest
+            python: '3.12'
+          - os: windows-latest
+            python: '3.12'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            requirements-core.txt
+            requirements-test.txt
+      - run: python -m pip install -r requirements-test.txt
+      - run: python -m pytest -q
+      - run: node --test tests/test_stream.cjs
+      - name: Check browser scripts
+        shell: bash
+        run: |
+          for script in js/*.js; do node --check "$script"; done
+      - name: Check BAT discovery without installing or opening a browser
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: call AMANOGAWA.BAT --check

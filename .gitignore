@@ -1,12 +1,16 @@
 # Секреты
 .env
+.env.*
+!.env.example
 
 # Python
 .venv/
 .python/
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Данные базы знаний (загруженные файлы и индекс)
 data/
 *.log
+
