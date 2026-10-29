@@ -6,12 +6,10 @@
   const log = document.getElementById("chat-log");
   const form = document.getElementById("chat-form");
   const q = document.getElementById("chat-q");
-  const mode = document.getElementById("chat-mode");
   const send = form.querySelector("button");
   const emptyHTML = log.innerHTML;
 
   let history = []; // [{role, content}] — уходит на сервер для уточняющих вопросов
-  let defaultMode = null;
 
   // ----- Простая разметка Markdown (без HTML из ответа) -----
   function escape(text) {
@@ -95,7 +93,7 @@
     try {
       const res = await AMA.api("query", {
         method: "POST",
-        json: { question: text, mode: mode.value, history },
+        json: { question: text, history }, // режим поиска — из «Настроек»
         raw: true,
       });
       const reader = res.body.getReader();
@@ -175,19 +173,12 @@
   const panel = document.getElementById("chat");
   let opener = null;
 
-  async function open() {
+  function open() {
     if (!panel.hidden) return;
     opener = document.activeElement;
     panel.hidden = false;
     document.body.classList.add("chat-open");
     AMA.refreshStatus();
-    if (defaultMode === null) {
-      defaultMode = "";
-      try {
-        defaultMode = (await AMA.api("settings")).values.QUERY_MODE;
-        mode.value = defaultMode;
-      } catch (_) { /* сервер не запущен — статус это покажет */ }
-    }
     q.focus({ preventScroll: true });
   }
 
