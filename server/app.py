@@ -10,11 +10,13 @@ import logging
 import os
 import re
 import threading
+import tempfile
 import time
 import uuid
 import webbrowser
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv, set_key
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
@@ -87,20 +89,28 @@ def llm_func(prompt, system_prompt=None, history_messages=None, **kwargs):
 
 def vision_func(prompt, system_prompt=None, history_messages=None,
                 image_data=None, messages=None, **kwargs):
+    kwargs.pop("keyword_extraction", None)
+    kwargs.pop("response_format", None)
     model, key, url = cfg("VISION_MODEL"), cfg(SECRET), cfg("CLOUDRU_BASE_URL")
     if messages:
-        return openai_complete_if_cache(model, "", messages=messages,
+        # The helper builds `messages` itself; forwarding that keyword gives
+        # chat.completions.create() two values for the same argument.
+        if messages[-1].get("role") != "user":
+            raise ValueError("Запрос к модели зрения должен заканчиваться сообщением пользователя")
+        return openai_complete_if_cache(model, messages[-1]["content"],
+                                        history_messages=messages[:-1],
                                         api_key=key, base_url=url, **kwargs)
     if image_data:
         mime = image_mime_type(base64.b64decode(image_data[:24])) or "image/jpeg"
-        msgs = []
+        msgs = list(history_messages or [])
         if system_prompt:
             msgs.append({"role": "system", "content": system_prompt})
         msgs.append({"role": "user", "content": [
             {"type": "text", "text": prompt},
             {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image_data}"}},
         ]})
-        return openai_complete_if_cache(model, "", messages=msgs,
+        return openai_complete_if_cache(model, msgs[-1]["content"],
+                                        history_messages=msgs[:-1],
                                         api_key=key, base_url=url, **kwargs)
     return llm_func(prompt, system_prompt, history_messages, **kwargs)
 
@@ -121,7 +131,22 @@ async def detect_embedding_dim():
 state = {"rag": None, "parser_ok": False, "error": None, "dim": None}
 init_lock = asyncio.Lock()
 work_lock = asyncio.Lock()  # документы индексируются по одному
+settings_lock = asyncio.Lock()
+active_operations = 0
 jobs = {}  # загрузки, которые ещё не попали в базу или упали
+background_tasks = set()
+
+
+@asynccontextmanager
+async def use_rag():
+    """Keep settings and storages stable for an operation, including its stream."""
+    global active_operations
+    async with settings_lock:
+        active_operations += 1
+    try:
+        yield await get_rag()
+    finally:
+        active_operations -= 1
 
 
 async def get_rag():
@@ -166,24 +191,29 @@ async def get_rag():
 
 
 async def reset_rag():
-    async with init_lock, work_lock:
+    # Caller owns settings_lock and has checked that no operation is active.
+    async with init_lock:
         rag, state["rag"] = state["rag"], None
-        state["error"] = None
+        state.update(error=None, dim=None, parser_ok=False)
         if rag is not None:
             await rag.finalize_storages()
 
 
 def safe_name(name):
-    name = Path(name or "file").name
-    name = re.sub(r"[^\w.\- ]+", "_", name, flags=re.UNICODE).strip() or "file"
-    return name[:120]
+    name = re.split(r"[\\/]", name or "file")[-1]
+    name = re.sub(r"[^\w.\- ]+", "_", name, flags=re.UNICODE).strip(" .") or "file"
+    if name.split(".")[0].upper() in {"CON", "PRN", "AUX", "NUL", *(
+        f"{prefix}{i}" for prefix in ("COM", "LPT") for i in range(1, 10)
+    )}:
+        name = "_" + name
+    suffix = Path(name).suffix[:20]
+    return name if len(name) <= 120 else name[:120-len(suffix)] + suffix
 
 
 async def index_file(job_id, path: Path):
     job = jobs[job_id]
     try:
-        rag = await get_rag()
-        async with work_lock:
+        async with work_lock, use_rag() as rag:
             job["status"] = "processing"
             if path.suffix.lower() in TEXT_EXT:
                 text = path.read_text(encoding="utf-8", errors="replace")
@@ -235,9 +265,15 @@ async def stored_documents(rag):
 @asynccontextmanager
 async def lifespan(_):
     if os.getenv("OPEN_BROWSER") == "1":
-        url = f"http://127.0.0.1:{os.getenv('PORT', '8000')}/"
+        host = os.getenv("HOST", "127.0.0.1")
+        host = f"[{host}]" if ":" in host else host
+        url = f"http://{host}:{os.getenv('PORT', '8000')}/"
         threading.Timer(1.0, webbrowser.open, [url]).start()
     yield
+    for task in tuple(background_tasks):
+        task.cancel()
+    if background_tasks:
+        await asyncio.gather(*background_tasks, return_exceptions=True)
     if state["rag"] is not None:
         await state["rag"].finalize_storages()
 
@@ -253,8 +289,8 @@ async def local_only(request: Request, call_next):
     # Сервер слушает только этот компьютер. Проверка Host защищает от DNS rebinding,
     # а обязательный заголовок не даёт чужим сайтам слать формы на localhost.
     if request.url.path.startswith("/api/"):
-        host = (request.headers.get("host") or "").rsplit(":", 1)[0]
-        if host not in LOCAL_HOSTS:
+        host = request.url.hostname
+        if host not in LOCAL_HOSTS | {"::1"}:
             return JSONResponse({"error": "Доступ только с этого компьютера"}, status_code=403)
         if request.method not in ("GET", "HEAD", "OPTIONS") and request.headers.get("x-amanogawa") != "1":
             return JSONResponse({"error": "Нет заголовка X-Amanogawa"}, status_code=403)
@@ -283,7 +319,8 @@ async def status():
 
 @app.post("/api/connect")
 async def connect():
-    await get_rag()
+    async with use_rag():
+        pass
     return await status()
 
 
@@ -291,6 +328,39 @@ async def connect():
 class SettingsIn(BaseModel):
     values: dict[str, str] = {}
     api_key: str | None = None  # пусто — ключ не меняется
+
+
+def validate_url(value):
+    try:
+        url = urlsplit(value)
+        valid = (url.scheme in {"http", "https"} and url.hostname
+                 and not url.username and not url.password
+                 and not url.query and not url.fragment)
+        _ = url.port
+    except ValueError:
+        valid = False
+    if not valid:
+        raise HTTPException(400, "Адрес API: нужен корректный URL http:// или https:// без пароля и параметров")
+
+
+def validate_settings(changes):
+    if any(re.search(r"[\r\n\x00]", v) for v in changes.values()):
+        raise HTTPException(400, "Значения должны быть в одну строку")
+    if "CLOUDRU_BASE_URL" in changes:
+        validate_url(changes["CLOUDRU_BASE_URL"])
+    for key in ("LLM_MODEL", "EMBEDDING_MODEL", "SUMMARY_LANGUAGE"):
+        if key in changes and not changes[key]:
+            raise HTTPException(400, f"{key}: значение не должно быть пустым")
+    if changes.get("QUERY_MODE", "mix") not in MODES:
+        raise HTTPException(400, "Неизвестный режим поиска")
+    if changes.get("PARSER", "mineru") not in {"mineru", "docling", "paddleocr"}:
+        raise HTTPException(400, "Неизвестный парсер")
+    for key, minimum, maximum in (("EMBEDDING_DIM", 1, 65536), ("TOP_K", 1, 200), ("HISTORY_TURNS", 0, 20)):
+        if key not in changes or (key == "EMBEDDING_DIM" and not changes[key]):
+            continue
+        value = changes[key]
+        if not re.fullmatch(r"[0-9]{1,6}", value) or not minimum <= int(value) <= maximum:
+            raise HTTPException(400, f"{key}: нужно целое число от {minimum} до {maximum}")
 
 
 @app.get("/api/settings")
@@ -309,18 +379,23 @@ async def put_settings(body: SettingsIn):
     changes = {k: v.strip() for k, v in body.values.items() if k in DEFAULTS}
     if body.api_key and body.api_key.strip():
         changes[SECRET] = body.api_key.strip()
-    if changes.get("QUERY_MODE", "mix") not in MODES:
-        raise HTTPException(400, "Неизвестный режим поиска")
-    for k in ("EMBEDDING_DIM", "TOP_K", "HISTORY_TURNS"):
-        if changes.get(k) and not changes[k].isdigit():
-            raise HTTPException(400, f"{k}: нужно целое число")
-    if any(re.search(r"[\r\n]", v) for v in changes.values()):
-        raise HTTPException(400, "Значения должны быть в одну строку")
-    ENV_FILE.touch(exist_ok=True)
-    for k, v in changes.items():
-        set_key(str(ENV_FILE), k, v, quote_mode="never")
-        os.environ[k] = v
-    await reset_rag()
+    validate_settings(changes)
+    async with settings_lock:
+        if active_operations or work_lock.locked():
+            raise HTTPException(409, "Сейчас база занята: дождитесь окончания индексации или ответа и сохраните настройки снова")
+        await reset_rag()
+        fd, staging_name = tempfile.mkstemp(prefix=".env.", dir=ENV_FILE.parent)
+        os.close(fd)
+        staging = Path(staging_name)
+        try:
+            if ENV_FILE.exists():
+                staging.write_bytes(ENV_FILE.read_bytes())
+            for k, v in changes.items():
+                set_key(str(staging), k, v, quote_mode="always")
+            os.replace(staging, ENV_FILE)
+        finally:
+            staging.unlink(missing_ok=True)
+        os.environ.update(changes)
     return await get_settings()
 
 
@@ -334,7 +409,9 @@ async def models(body: ModelsIn):
     key = (body.api_key or "").strip() or cfg(SECRET)
     if not key:
         raise HTTPException(400, "Сначала впишите ключ")
-    client = AsyncOpenAI(api_key=key, base_url=(body.base_url or "").strip() or cfg("CLOUDRU_BASE_URL"))
+    url = (body.base_url or "").strip() or cfg("CLOUDRU_BASE_URL")
+    validate_url(url)
+    client = AsyncOpenAI(api_key=key, base_url=url)
     try:
         page = await client.models.list()
         return {"models": sorted(m.id for m in page.data)}
@@ -350,34 +427,44 @@ async def upload(file: UploadFile = File(...)):
     INPUTS.mkdir(parents=True, exist_ok=True)
     name = safe_name(file.filename)
     dest = INPUTS / name
-    if dest.exists():
-        dest = INPUTS / f"{dest.stem}-{uuid.uuid4().hex[:6]}{dest.suffix}"
-    size = 0
-    with dest.open("wb") as out:
-        while chunk := await file.read(1024 * 1024):
-            size += len(chunk)
-            if size > MAX_UPLOAD:
-                out.close()
-                dest.unlink(missing_ok=True)
-                raise HTTPException(413, "Файл больше 200 МБ")
-            out.write(chunk)
+    while True:
+        try:
+            out = dest.open("xb")
+            break
+        except FileExistsError:
+            original = Path(name)
+            dest = INPUTS / f"{original.stem}-{uuid.uuid4().hex[:12]}{original.suffix}"
+    try:
+        size = 0
+        with out:
+            while chunk := await file.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_UPLOAD:
+                    raise HTTPException(413, "Файл больше 200 МБ")
+                out.write(chunk)
+        if not size:
+            raise HTTPException(400, "Файл пустой")
+    except BaseException:
+        dest.unlink(missing_ok=True)
+        raise
     job_id = "job-" + uuid.uuid4().hex[:12]
     jobs[job_id] = {"id": job_id, "name": dest.name, "status": "queued", "error": None,
                     "chunks": None, "updated": time.strftime("%Y-%m-%dT%H:%M:%S")}
-    asyncio.create_task(index_file(job_id, dest))
+    task = asyncio.create_task(index_file(job_id, dest))
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
     return jobs[job_id]
 
 
 @app.get("/api/documents")
 async def documents():
     docs = []
-    if state["rag"] is None and cfg(SECRET):
+    if state["rag"] is not None or cfg(SECRET):
         try:
-            await get_rag()
+            async with use_rag() as rag:
+                docs = await stored_documents(rag)
         except HTTPException:
             pass
-    if state["rag"] is not None:
-        docs = await stored_documents(state["rag"])
     names = {d["name"] for d in docs}
     pending = [j for j in jobs.values() if j["status"] == "error" or j["name"] not in names]
     return sorted(pending + docs, key=lambda d: d["updated"] or "", reverse=True)
@@ -392,8 +479,7 @@ async def delete_document(doc_id: str):
         jobs.pop(doc_id)
         (INPUTS / job["name"]).unlink(missing_ok=True)
         return {"deleted": doc_id}
-    rag = await get_rag()
-    async with work_lock:
+    async with work_lock, use_rag() as rag:
         result = await rag.lightrag.adelete_by_doc_id(doc_id)
     if result.status != "success":
         raise HTTPException(result.status_code or 400, result.message)
@@ -417,7 +503,8 @@ async def query(q: Question):
     mode = q.mode or cfg("QUERY_MODE")
     if mode not in MODES:
         raise HTTPException(400, f"Неизвестный режим: {mode}")
-    rag = await get_rag()
+    async with use_rag():
+        pass
 
     turns = int(cfg("HISTORY_TURNS") or 0)
     history = [
@@ -433,19 +520,23 @@ async def query(q: Question):
         def line(obj):
             return json.dumps(obj, ensure_ascii=False) + "\n"
         try:
-            result = await rag.lightrag.aquery_llm(text, param=param)
-            refs = (result.get("data") or {}).get("references") or []
-            yield line({"type": "sources", "sources": [
-                {"id": r.get("reference_id"), "file": r.get("file_path")} for r in refs
-            ]})
-            llm = result.get("llm_response") or {}
-            if llm.get("is_streaming") and llm.get("response_iterator") is not None:
-                async for chunk in llm["response_iterator"]:
-                    if chunk:
-                        yield line({"type": "text", "text": chunk})
-            else:
-                yield line({"type": "text", "text": llm.get("content")
-                            or "Ничего не нашлось. Загрузите документы или переформулируйте вопрос."})
+            async with use_rag() as rag:
+                result = await rag.lightrag.aquery_llm(text, param=param)
+                if (result.get("status") == "failure"
+                        and (result.get("metadata") or {}).get("failure_reason") != "no_results"):
+                    raise RuntimeError(result.get("message") or "Модель не вернула ответ")
+                refs = (result.get("data") or {}).get("references") or []
+                yield line({"type": "sources", "sources": [
+                    {"id": r.get("reference_id"), "file": r.get("file_path")} for r in refs
+                ]})
+                llm = result.get("llm_response") or {}
+                if llm.get("is_streaming") and llm.get("response_iterator") is not None:
+                    async for chunk in llm["response_iterator"]:
+                        if chunk:
+                            yield line({"type": "text", "text": chunk})
+                else:
+                    yield line({"type": "text", "text": llm.get("content")
+                                or "Ничего не нашлось. Загрузите документы или переформулируйте вопрос."})
         except Exception as e:
             log.exception("Ошибка запроса")
             yield line({"type": "error", "error": f"Ошибка запроса к модели: {e}"})
@@ -457,8 +548,8 @@ async def query(q: Question):
 # --- Граф знаний ---
 @app.get("/api/graph")
 async def graph(label: str = "*", max_nodes: int = 300):
-    rag = await get_rag()
-    kg = await rag.lightrag.get_knowledge_graph(label or "*", max_depth=3,
+    async with use_rag() as rag:
+        kg = await rag.lightrag.get_knowledge_graph(label or "*", max_depth=3,
                                                 max_nodes=max(10, min(max_nodes, 1000)))
     return {
         "truncated": kg.is_truncated,
@@ -479,8 +570,8 @@ async def graph(label: str = "*", max_nodes: int = 300):
 
 @app.get("/api/graph/labels")
 async def graph_labels():
-    rag = await get_rag()
-    return {"labels": await rag.lightrag.get_graph_labels()}
+    async with use_rag() as rag:
+        return {"labels": await rag.lightrag.get_graph_labels()}
 
 
 # ----- Сайт (index.html, css, js) -----
@@ -492,3 +583,4 @@ async def index():
 app.mount("/css", StaticFiles(directory=ROOT / "css"), name="css")
 app.mount("/js", StaticFiles(directory=ROOT / "js"), name="js")
 app.mount("/img", StaticFiles(directory=ROOT / "img"), name="img")
+

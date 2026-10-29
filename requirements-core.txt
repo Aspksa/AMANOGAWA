@@ -1,0 +1,7 @@
+# Web/API and the LightRAG API version used by server/app.py.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+python-multipart>=0.0.18,<1
+python-dotenv>=1,<2
+openai>=1.60,<4
+lightrag-hku>=1.4.16,<1.5

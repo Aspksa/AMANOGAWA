@@ -10,6 +10,8 @@
   const emptyHTML = log.innerHTML;
 
   let history = []; // [{role, content}] — уходит на сервер для уточняющих вопросов
+  let generation = 0;
+  let controller = null;
 
   // ----- Простая разметка Markdown (без HTML из ответа) -----
   function escape(text) {
@@ -80,6 +82,8 @@
   }
 
   async function ask(text) {
+    const current = generation;
+    controller = new AbortController();
     const user = add("user");
     user.textContent = text;
     const bot = add("bot");
@@ -95,19 +99,10 @@
         method: "POST",
         json: { question: text, history }, // режим поиска — из «Настроек»
         raw: true,
+        signal: controller.signal,
       });
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop();
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const ev = JSON.parse(line);
+      await AMA.readStream(res.body, (ev) => {
+          if (current !== generation) return;
           if (ev.type === "sources") sources = ev.sources;
           else if (ev.type === "text") {
             const stick = atBottom();
@@ -118,13 +113,14 @@
             failed = true;
             answer += (answer ? "\n\n" : "") + ev.error;
           }
-        }
-      }
+      });
     } catch (e) {
       failed = true;
       answer = e.message;
     }
 
+    if (current !== generation) return;
+    controller = null;
     bot.classList.remove("is-pending");
     if (failed) {
       bot.classList.add("msg--error");
@@ -164,6 +160,10 @@
   q.addEventListener("input", grow);
 
   document.getElementById("chat-new").addEventListener("click", () => {
+    generation++;
+    controller?.abort();
+    controller = null;
+    send.disabled = false;
     history = [];
     log.innerHTML = emptyHTML;
     q.focus();
@@ -201,3 +201,4 @@
     }
   });
 })();
+
