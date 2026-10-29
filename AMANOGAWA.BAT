@@ -12,8 +12,10 @@ echo    -----------------
 echo.
 
 rem Try to start a local web server (Python). Otherwise open the file directly.
-where py >nul 2>nul && (set "PY=py -3") && goto serve
-where python >nul 2>nul && (set "PY=python") && goto serve
+rem Run a tiny command to make sure Python really works: on Windows the
+rem "python" Store alias exists even when Python is not installed.
+py -3 -c "import http.server" >nul 2>nul && (set "PY=py -3") && goto serve
+python -c "import http.server" >nul 2>nul && (set "PY=python") && goto serve
 
 echo    Python not found - opening index.html directly in the browser.
 start "" "%~dp0index.html"
