@@ -15,6 +15,9 @@
 <body>
   <canvas id="sky" aria-hidden="true"></canvas>
   <div class="nebula" aria-hidden="true"></div>
+  <div class="aurora" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="cursor-glow" aria-hidden="true"></div>
 
   <header class="topbar">
     <a class="brand" href="#top" aria-label="AMANOGAWA — на главную">
@@ -35,29 +38,40 @@
 
   <main id="top">
     <section class="hero">
+      <div class="orbits" aria-hidden="true">
+        <span class="orbit orbit--1"><i></i></span>
+        <span class="orbit orbit--2"><i></i></span>
+        <span class="orbit orbit--3"><i></i></span>
+      </div>
+
       <p class="hero__kicker">天の川</p>
       <h1 class="hero__title">AMANOGAWA</h1>
       <p class="hero__lead">Небесная река. Здесь скоро что-то появится.</p>
-      <a class="btn" href="#stages">Смотреть дальше</a>
+      <a class="btn" href="#stages"><span>Смотреть дальше</span></a>
+
+      <a class="scroll-hint" href="#stages" aria-label="Прокрутить вниз"><span></span></a>
     </section>
 
     <section id="stages" class="stages" aria-labelledby="stages-title">
-      <h2 id="stages-title" class="section-title">Разделы</h2>
+      <p class="section-kicker reveal">01 — 03</p>
+      <h2 id="stages-title" class="section-title reveal">Разделы</h2>
       <div class="grid">
-        <article class="card card--empty"><span class="card__num">01</span><p>Скоро</p></article>
-        <article class="card card--empty"><span class="card__num">02</span><p>Скоро</p></article>
-        <article class="card card--empty"><span class="card__num">03</span><p>Скоро</p></article>
+        <article class="card card--empty reveal"><span class="card__num">01</span><p>Скоро</p></article>
+        <article class="card card--empty reveal"><span class="card__num">02</span><p>Скоро</p></article>
+        <article class="card card--empty reveal"><span class="card__num">03</span><p>Скоро</p></article>
       </div>
     </section>
 
     <section id="about" class="about" aria-labelledby="about-title">
-      <h2 id="about-title" class="section-title">О проекте</h2>
-      <p class="muted">Раздел в разработке.</p>
+      <p class="section-kicker reveal">∞</p>
+      <h2 id="about-title" class="section-title reveal">О проекте</h2>
+      <p class="muted reveal">Раздел в разработке.</p>
     </section>
   </main>
 
   <footer class="footer">
-    <span>© <span id="year"></span> AMANOGAWA</span>
+    <span class="footer__line" aria-hidden="true"></span>
+    <span>© <span id="year"></span> AMANOGAWA · 天の川</span>
   </footer>
 
   <script src="js/main.js"></script>
