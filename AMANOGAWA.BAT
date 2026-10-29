@@ -28,7 +28,7 @@ call :find_python
 if defined PY goto python
 
 rem No Python: install it with winget (built into Windows 10/11).
-echo    Python 3.10+ not found. Installing Python 3.12 - this takes a few minutes...
+echo    Python 3.10+ not found. Installing Python 3.12 with winget - this takes a few minutes...
 echo.
 where winget >nul 2>nul || goto no_python
 winget install -e --id Python.Python.3.12 --scope user --accept-package-agreements --accept-source-agreements
@@ -47,6 +47,7 @@ start "" "%~dp0index.html"
 goto end
 
 :python
+echo    Python: %PY%
 set "VPY=%~dp0.venv\Scripts\python.exe"
 
 rem 1. Virtual environment with RAG-Anything (first run takes a while).
@@ -95,11 +96,28 @@ pause >nul
 exit
 
 rem Sets PY to a working Python 3.10+ command, or leaves it empty.
-rem Run real code to check: the "python" Store alias exists even without Python.
+rem Each candidate runs real code: the "python" Store alias exists even without Python.
 :find_python
 set "PY="
 py -3 -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul && set "PY=py -3" && exit /b
 python -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul && set "PY=python" && exit /b
-rem Just installed by winget: PATH of this window is not updated yet.
-if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set PY="%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+rem Not in PATH: look where installers put Python (registry first, then usual folders).
+for /f "tokens=2,*" %%A in ('reg query "HKCU\Software\Python\PythonCore" /s /v ExecutablePath 2^>nul ^| findstr /i "ExecutablePath"') do call :try_py "%%B"
+for /f "tokens=2,*" %%A in ('reg query "HKLM\Software\Python\PythonCore" /s /v ExecutablePath 2^>nul ^| findstr /i "ExecutablePath"') do call :try_py "%%B"
+for /f "tokens=2,*" %%A in ('reg query "HKLM\Software\WOW6432Node\Python\PythonCore" /s /v ExecutablePath 2^>nul ^| findstr /i "ExecutablePath"') do call :try_py "%%B"
+for /f "tokens=2,*" %%A in ('reg query "HKCU\Software\Python\PythonCore" /s /ve 2^>nul ^| findstr /i "REG_SZ"') do call :try_py "%%Bpython.exe"
+for /f "tokens=2,*" %%A in ('reg query "HKLM\Software\Python\PythonCore" /s /ve 2^>nul ^| findstr /i "REG_SZ"') do call :try_py "%%Bpython.exe"
+for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do call :try_py "%%D\python.exe"
+for /d %%D in ("%ProgramFiles%\Python3*") do call :try_py "%%D\python.exe"
+for /d %%D in ("C:\Python3*") do call :try_py "%%D\python.exe"
+call :try_py "%LOCALAPPDATA%\Programs\Python\Launcher\py.exe"
+call :try_py "%WINDIR%\py.exe"
+exit /b
+
+rem Uses %1 as PY if it exists and is Python 3.10+.
+:try_py
+if defined PY exit /b
+if not exist "%~1" exit /b
+"%~1" -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul || exit /b
+set PY="%~1"
 exit /b
