@@ -17,104 +17,219 @@
   <div class="nebula" aria-hidden="true"></div>
   <div class="aurora" aria-hidden="true"></div>
   <div class="grain" aria-hidden="true"></div>
-  <div class="cursor-glow" aria-hidden="true"></div>
 
-  <header class="topbar">
-    <a class="brand" href="#top" aria-label="AMANOGAWA — на главную">
-      <span class="brand__star" aria-hidden="true"></span>
-      <span class="brand__name">AMANOGAWA</span>
+  <!-- Меню иконками слева (на телефоне — снизу) -->
+  <nav class="rail" aria-label="Основное меню">
+    <a class="rail__brand" href="#/home" aria-label="AMANOGAWA — главная"><span class="brand__star" aria-hidden="true"></span></a>
+
+    <div class="rail__links">
+      <a class="rail__link" href="#/home" data-label="Главная">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>
+        <span class="sr">Главная</span>
+      </a>
+      <a class="rail__link" href="#/chat" data-label="Вопросы">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5A8 8 0 1 1 21 12Z"/><path d="M8.5 11h7M8.5 14h4.5"/></svg>
+        <span class="sr">Вопросы</span>
+      </a>
+      <a class="rail__link" href="#/docs" data-label="Документы">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
+        <span class="sr">Документы</span>
+      </a>
+      <a class="rail__link" href="#/graph" data-label="Граф знаний">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="9" cy="18" r="2.5"/><path d="m8.3 7 7.4.8M7 8.4l1.4 7.2M16.4 10l-5.6 6.2"/></svg>
+        <span class="sr">Граф знаний</span>
+      </a>
+    </div>
+
+    <a class="rail__link rail__link--end" href="#/settings" data-label="Настройки">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+      <span class="sr">Настройки</span>
     </a>
+  </nav>
 
-    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav" aria-label="Открыть меню">
-      <span></span><span></span>
-    </button>
-
-    <nav id="nav" class="nav" aria-label="Основное меню">
-      <a href="#top" aria-current="page">Главная</a>
-      <a href="#stages">Разделы</a>
-      <a href="#rag">База знаний</a>
-      <a href="#about">О проекте</a>
-    </nav>
-  </header>
-
-  <main id="top">
-    <section class="hero">
-      <div class="orbits" aria-hidden="true">
-        <span class="orbit orbit--1"><i></i></span>
-        <span class="orbit orbit--2"><i></i></span>
-        <span class="orbit orbit--3"><i></i></span>
-      </div>
-
-      <p class="hero__kicker">天の川</p>
-      <h1 class="hero__title">AMANOGAWA</h1>
-      <p class="hero__lead">Небесная река. Здесь скоро что-то появится.</p>
-      <a class="btn" href="#stages"><span>Смотреть дальше</span></a>
-
-      <a class="scroll-hint" href="#stages" aria-label="Прокрутить вниз"><span></span></a>
+  <main class="stage">
+    <!-- Главная: пустая и чистая -->
+    <section class="view view--home" data-view="home" data-title="Главная" aria-label="Главная">
+      <p class="home__mark" aria-hidden="true">天の川</p>
     </section>
 
-    <section id="stages" class="stages" aria-labelledby="stages-title">
-      <p class="section-kicker reveal">01 — 03</p>
-      <h2 id="stages-title" class="section-title reveal">Разделы</h2>
-      <div class="grid">
-        <article class="card card--empty reveal"><span class="card__num">01</span><p>Скоро</p></article>
-        <article class="card card--empty reveal"><span class="card__num">02</span><p>Скоро</p></article>
-        <article class="card card--empty reveal"><span class="card__num">03</span><p>Скоро</p></article>
+    <!-- Вопросы к базе знаний -->
+    <section class="view" data-view="chat" data-title="Вопросы" aria-labelledby="chat-title" hidden>
+      <header class="view__head">
+        <div>
+          <h1 id="chat-title" class="view__title">Вопросы</h1>
+          <p class="status" data-status role="status"></p>
+        </div>
+        <button class="btn-ghost" type="button" id="chat-new">Новый диалог</button>
+      </header>
+
+      <div class="chat" id="chat-log" aria-live="polite">
+        <p class="empty">Спросите что-нибудь о загруженных документах.</p>
+      </div>
+
+      <form class="ask" id="chat-form">
+        <textarea id="chat-q" rows="1" placeholder="Ваш вопрос…" aria-label="Ваш вопрос" required></textarea>
+        <select id="chat-mode" aria-label="Режим поиска" title="Режим поиска">
+          <option value="mix">mix</option>
+          <option value="hybrid">hybrid</option>
+          <option value="local">local</option>
+          <option value="global">global</option>
+          <option value="naive">naive</option>
+          <option value="bypass">без базы</option>
+        </select>
+        <button class="btn-icon" type="submit" aria-label="Спросить">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </form>
+    </section>
+
+    <!-- Документы -->
+    <section class="view" data-view="docs" data-title="Документы" aria-labelledby="docs-title" hidden>
+      <header class="view__head">
+        <div>
+          <h1 id="docs-title" class="view__title">Документы</h1>
+          <p class="status" data-status role="status"></p>
+        </div>
+      </header>
+
+      <label class="drop" id="docs-drop">
+        <input type="file" id="docs-file" multiple>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+        <span>Перетащите файлы или <u>выберите</u></span>
+        <small>TXT и MD — сразу; PDF, Office и картинки — через парсер</small>
+      </label>
+
+      <ul class="docs" id="docs-list" aria-live="polite"></ul>
+    </section>
+
+    <!-- Граф знаний -->
+    <section class="view view--graph" data-view="graph" data-title="Граф знаний" aria-labelledby="graph-title" hidden>
+      <header class="view__head">
+        <div>
+          <h1 id="graph-title" class="view__title">Граф знаний</h1>
+          <p class="status" id="graph-info" role="status"></p>
+        </div>
+        <form class="graph__tools" id="graph-form">
+          <input id="graph-label" list="graph-labels" placeholder="Сущность или *" aria-label="Сущность" value="*">
+          <datalist id="graph-labels"></datalist>
+          <select id="graph-max" aria-label="Сколько узлов">
+            <option value="100">100</option>
+            <option value="300" selected>300</option>
+            <option value="1000">1000</option>
+          </select>
+          <button class="btn-ghost" type="submit">Показать</button>
+        </form>
+      </header>
+
+      <div class="graph">
+        <canvas id="graph-canvas" aria-label="Граф сущностей и связей"></canvas>
+        <aside class="graph__card" id="graph-card" hidden>
+          <button class="graph__close" type="button" aria-label="Закрыть">×</button>
+          <h2></h2>
+          <p class="graph__type"></p>
+          <p class="graph__desc"></p>
+          <ul class="graph__links"></ul>
+        </aside>
       </div>
     </section>
 
-    <section id="rag" class="rag" aria-labelledby="rag-title">
-      <p class="section-kicker reveal">RAG · Cloud.ru</p>
-      <h2 id="rag-title" class="section-title reveal">База знаний</h2>
-      <p class="rag__status muted reveal" id="rag-status" role="status">Проверяю сервер…</p>
+    <!-- Настройки -->
+    <section class="view" data-view="settings" data-title="Настройки" aria-labelledby="settings-title" hidden>
+      <header class="view__head">
+        <div>
+          <h1 id="settings-title" class="view__title">Настройки</h1>
+          <p class="status" id="settings-status" role="status"></p>
+        </div>
+        <button class="btn-solid" type="submit" form="settings-form">Сохранить</button>
+      </header>
 
-      <div class="rag__grid">
-        <div class="panel reveal">
-          <h3 class="panel__title">Документы</h3>
-          <label class="drop" id="rag-drop">
-            <input type="file" id="rag-file" multiple>
-            <span class="drop__icon" aria-hidden="true">✦</span>
-            <span>Перетащите файлы сюда или <u>выберите</u></span>
-            <small class="muted">TXT, MD — сразу; PDF, Office, картинки — через парсер MinerU</small>
+      <form class="settings" id="settings-form" autocomplete="off">
+        <fieldset class="group">
+          <legend>Cloud.ru</legend>
+          <label class="field field--wide">
+            <span>Ключ API</span>
+            <input type="password" name="api_key" id="set-key" placeholder="Вставьте ключ Foundation Models">
+            <small id="set-key-hint">Хранится только в файле .env на этом компьютере.</small>
           </label>
-          <ul class="docs" id="rag-docs" aria-live="polite"></ul>
-        </div>
-
-        <div class="panel panel--chat reveal">
-          <h3 class="panel__title">Вопрос</h3>
-          <div class="chat" id="rag-chat" aria-live="polite">
-            <p class="chat__empty muted">Загрузите документы и спросите что-нибудь о них.</p>
+          <label class="field field--wide">
+            <span>Адрес API</span>
+            <input name="CLOUDRU_BASE_URL" required>
+          </label>
+          <div class="field field--wide">
+            <button class="btn-ghost" type="button" id="set-check">Проверить ключ и загрузить модели</button>
           </div>
-          <form class="ask" id="rag-form">
-            <textarea id="rag-q" rows="2" placeholder="Ваш вопрос…" aria-label="Ваш вопрос" required></textarea>
-            <div class="ask__row">
-              <select id="rag-mode" aria-label="Режим поиска">
-                <option value="mix">mix</option>
-                <option value="hybrid">hybrid</option>
-                <option value="local">local</option>
-                <option value="global">global</option>
-                <option value="naive">naive</option>
-              </select>
-              <button class="btn-solid" type="submit">Спросить</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </section>
+        </fieldset>
 
-    <section id="about" class="about" aria-labelledby="about-title">
-      <p class="section-kicker reveal">∞</p>
-      <h2 id="about-title" class="section-title reveal">О проекте</h2>
-      <p class="muted reveal">Раздел в разработке.</p>
+        <fieldset class="group">
+          <legend>Модели</legend>
+          <label class="field field--wide">
+            <span>Ответы (LLM)</span>
+            <input name="LLM_MODEL" list="model-list" required>
+          </label>
+          <label class="field field--wide">
+            <span>Эмбеддинги</span>
+            <input name="EMBEDDING_MODEL" list="model-list" required>
+            <small>У каждой модели эмбеддингов своя база: после смены документы надо загрузить заново.</small>
+          </label>
+          <label class="field">
+            <span>Зрение (картинки в PDF)</span>
+            <input name="VISION_MODEL" list="model-list" placeholder="не использовать">
+          </label>
+          <label class="field">
+            <span>Размер эмбеддинга</span>
+            <input name="EMBEDDING_DIM" inputmode="numeric" placeholder="авто">
+          </label>
+          <datalist id="model-list"></datalist>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Поиск</legend>
+          <label class="field">
+            <span>Режим по умолчанию</span>
+            <select name="QUERY_MODE">
+              <option value="mix">mix — граф + фрагменты</option>
+              <option value="hybrid">hybrid — локальный + глобальный</option>
+              <option value="local">local — по сущностям</option>
+              <option value="global">global — по связям</option>
+              <option value="naive">naive — только фрагменты</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Сколько результатов (top_k)</span>
+            <input name="TOP_K" type="number" min="1" max="200">
+          </label>
+          <label class="field">
+            <span>Память диалога, вопросов</span>
+            <input name="HISTORY_TURNS" type="number" min="0" max="20">
+          </label>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Индексация</legend>
+          <label class="field">
+            <span>Язык описаний в графе</span>
+            <select name="SUMMARY_LANGUAGE">
+              <option value="Russian">Русский</option>
+              <option value="English">English</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Парсер PDF и Office</span>
+            <select name="PARSER">
+              <option value="mineru">MinerU</option>
+              <option value="docling">Docling</option>
+              <option value="paddleocr">PaddleOCR</option>
+            </select>
+          </label>
+        </fieldset>
+      </form>
     </section>
   </main>
 
-  <footer class="footer">
-    <span class="footer__line" aria-hidden="true"></span>
-    <span>© <span id="year"></span> AMANOGAWA · 天の川</span>
-  </footer>
-
   <script src="js/main.js"></script>
-  <script src="js/rag.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/docs.js"></script>
+  <script src="js/graph.js"></script>
+  <script src="js/settings.js"></script>
 </body>
 </html>

@@ -1,74 +1,88 @@
-// AMANOGAWA — звёздное небо, эффекты и меню
+// AMANOGAWA — звёздное небо, меню и общий доступ к API
 
 (function () {
   "use strict";
 
   document.documentElement.classList.add("js");
-  document.getElementById("year").textContent = new Date().getFullYear();
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-  // ----- Мобильное меню -----
-  const toggle = document.querySelector(".menu-toggle");
-  const nav = document.getElementById("nav");
-
-  function setMenu(open) {
-    toggle.setAttribute("aria-expanded", String(open));
-    toggle.setAttribute("aria-label", open ? "Закрыть меню" : "Открыть меню");
-    nav.classList.toggle("is-open", open);
+  // ----- Запросы к серверу -----
+  async function api(path, options = {}) {
+    if (location.protocol === "file:") throw new Error("Сайт открыт как файл. Запустите AMANOGAWA.BAT.");
+    const headers = { "X-Amanogawa": "1", ...(options.headers || {}) };
+    if (options.json !== undefined) {
+      headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(options.json);
+    }
+    let res;
+    try {
+      res = await fetch("/api/" + path, { ...options, headers });
+    } catch (_) {
+      throw new Error("Сервер не запущен. Запустите AMANOGAWA.BAT.");
+    }
+    if (options.raw && res.ok) return res;
+    let data = null;
+    try { data = await res.json(); } catch (_) { /* не JSON */ }
+    if (res.status === 404 && !data) throw new Error("Сервер базы знаний не запущен. Запустите AMANOGAWA.BAT.");
+    if (!res.ok) throw new Error((data && (data.error || data.detail)) || `Ошибка ${res.status}`);
+    return data;
   }
 
-  toggle.addEventListener("click", () => setMenu(toggle.getAttribute("aria-expanded") !== "true"));
-  nav.addEventListener("click", (e) => { if (e.target.closest("a")) setMenu(false); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setMenu(false); });
+  // ----- Страницы и меню -----
+  const views = [...document.querySelectorAll(".view")];
+  const links = [...document.querySelectorAll(".rail__link")];
+  const listeners = [];
 
-  // ----- Шапка становится стеклянной при прокрутке -----
-  const topbar = document.querySelector(".topbar");
-  const onScroll = () => topbar.classList.toggle("is-scrolled", window.scrollY > 10);
-  window.addEventListener("scroll", onScroll, { passive: true });
-  onScroll();
-
-  // ----- Появление блоков при прокрутке -----
-  const reveals = document.querySelectorAll(".reveal");
-  document.querySelectorAll(".grid").forEach((grid) => {
-    [...grid.children].forEach((el, i) => el.style.setProperty("--d", `${i * 0.12}s`));
-  });
-
-  if ("IntersectionObserver" in window && !reduceMotion) {
-    const io = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("is-visible");
-          io.unobserve(entry.target);
-        }
-      }
-    }, { threshold: 0.15, rootMargin: "0px 0px -8% 0px" });
-    reveals.forEach((el) => io.observe(el));
-  } else {
-    reveals.forEach((el) => el.classList.add("is-visible"));
+  function route() {
+    const name = (location.hash.replace(/^#\/?/, "") || "home");
+    const view = views.find((v) => v.dataset.view === name) || views[0];
+    views.forEach((v) => { v.hidden = v !== view; });
+    links.forEach((a) => {
+      if (a.getAttribute("href") === "#/" + view.dataset.view) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
+    document.title = view.dataset.view === "home" ? "AMANOGAWA" : `${view.dataset.title} · AMANOGAWA`;
+    listeners.forEach((fn) => fn(view.dataset.view));
   }
 
-  // ----- Курсор: свечение и подсветка карточек -----
-  const pointer = { x: 0, y: 0, tx: 0, ty: 0 }; // смещение для параллакса, -1..1
+  window.addEventListener("hashchange", route);
+  listeners.push((name) => { if (name === "chat" || name === "docs") refreshStatus(); });
+
+  // Строка состояния подключения на страницах базы знаний
+  async function refreshStatus() {
+    const els = document.querySelectorAll("[data-status]");
+    const set = (text, kind) => els.forEach((el) => { el.textContent = text; el.dataset.kind = kind; });
+    try {
+      const s = await api("status");
+      if (!s.key) set("Нет ключа Cloud.ru — впишите его в «Настройках».", "warn");
+      else if (s.error) set("Cloud.ru: " + s.error, "error");
+      else set(`Cloud.ru · ${s.llm}`, s.ready ? "ok" : "warn");
+      return s;
+    } catch (e) {
+      set(e.message, "warn");
+      return null;
+    }
+  }
+
+  window.AMA = {
+    api,
+    refreshStatus,
+    onView(fn) { listeners.push(fn); },
+    get view() { return (views.find((v) => !v.hidden) || views[0]).dataset.view; },
+  };
+
+  document.addEventListener("DOMContentLoaded", route);
+
+  // ----- Параллакс звёзд за курсором -----
+  const pointer = { x: 0, y: 0, tx: 0, ty: 0 }; // смещение, -1..1
 
   if (finePointer) {
-    const glow = document.querySelector(".cursor-glow");
     window.addEventListener("pointermove", (e) => {
-      glow.classList.add("is-on");
-      glow.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
       pointer.tx = (e.clientX / window.innerWidth) * 2 - 1;
       pointer.ty = (e.clientY / window.innerHeight) * 2 - 1;
     }, { passive: true });
-    document.addEventListener("pointerleave", () => glow.classList.remove("is-on"));
-
-    document.querySelectorAll(".card").forEach((card) => {
-      card.addEventListener("pointermove", (e) => {
-        const r = card.getBoundingClientRect();
-        card.style.setProperty("--mx", `${e.clientX - r.left}px`);
-        card.style.setProperty("--my", `${e.clientY - r.top}px`);
-      });
-    });
   }
 
   // ----- Звёздное небо с полосой Млечного Пути -----
@@ -153,16 +167,14 @@
     ctx.clearRect(0, 0, width, height);
     const t = time / 1000;
 
-    // Плавно догоняем курсор и учитываем прокрутку
+    // Плавно догоняем курсор
     pointer.x += (pointer.tx - pointer.x) * 0.05;
     pointer.y += (pointer.ty - pointer.y) * 0.05;
-    const scroll = reduceMotion ? 0 : window.scrollY * 0.08;
 
     for (const s of stars) {
       const a = reduceMotion ? s.base : s.base * (0.55 + 0.45 * Math.sin(t * s.speed + s.phase));
-      let x = s.x - pointer.x * 18 * s.depth;
-      let y = s.y - pointer.y * 18 * s.depth - scroll * s.depth;
-      y = ((y % height) + height) % height;
+      const x = s.x - pointer.x * 18 * s.depth;
+      const y = s.y - pointer.y * 18 * s.depth;
 
       ctx.beginPath();
       ctx.fillStyle = `hsla(${s.hue}, 80%, 92%, ${a})`;

@@ -36,14 +36,9 @@ echo    Installing RAG-Anything and dependencies. This can take 10+ minutes...
 copy /y requirements.txt .venv\requirements.installed >nul
 
 :env
-rem 2. Cloud.ru key lives only in .env on this computer.
-if not exist ".env" (
-  copy /y ".env.example" ".env" >nul
-  echo.
-  echo    Created .env - paste your Cloud.ru API key after CLOUDRU_API_KEY=
-  echo    then save the file and close Notepad.
-  start /wait notepad ".env"
-)
+rem 2. Settings (Cloud.ru key, models) live in .env on this computer.
+rem    They are edited on the site: Settings page (gear icon).
+if not exist ".env" copy /y ".env.example" ".env" >nul
 
 rem 3. Site + knowledge base API.
 echo.
