@@ -32,6 +32,7 @@
     <nav id="nav" class="nav" aria-label="Основное меню">
       <a href="#top" aria-current="page">Главная</a>
       <a href="#stages">Разделы</a>
+      <a href="#rag">База знаний</a>
       <a href="#about">О проекте</a>
     </nav>
   </header>
@@ -62,6 +63,45 @@
       </div>
     </section>
 
+    <section id="rag" class="rag" aria-labelledby="rag-title">
+      <p class="section-kicker reveal">RAG · Cloud.ru</p>
+      <h2 id="rag-title" class="section-title reveal">База знаний</h2>
+      <p class="rag__status muted reveal" id="rag-status" role="status">Проверяю сервер…</p>
+
+      <div class="rag__grid">
+        <div class="panel reveal">
+          <h3 class="panel__title">Документы</h3>
+          <label class="drop" id="rag-drop">
+            <input type="file" id="rag-file" multiple>
+            <span class="drop__icon" aria-hidden="true">✦</span>
+            <span>Перетащите файлы сюда или <u>выберите</u></span>
+            <small class="muted">TXT, MD — сразу; PDF, Office, картинки — через парсер MinerU</small>
+          </label>
+          <ul class="docs" id="rag-docs" aria-live="polite"></ul>
+        </div>
+
+        <div class="panel panel--chat reveal">
+          <h3 class="panel__title">Вопрос</h3>
+          <div class="chat" id="rag-chat" aria-live="polite">
+            <p class="chat__empty muted">Загрузите документы и спросите что-нибудь о них.</p>
+          </div>
+          <form class="ask" id="rag-form">
+            <textarea id="rag-q" rows="2" placeholder="Ваш вопрос…" aria-label="Ваш вопрос" required></textarea>
+            <div class="ask__row">
+              <select id="rag-mode" aria-label="Режим поиска">
+                <option value="mix">mix</option>
+                <option value="hybrid">hybrid</option>
+                <option value="local">local</option>
+                <option value="global">global</option>
+                <option value="naive">naive</option>
+              </select>
+              <button class="btn-solid" type="submit">Спросить</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
     <section id="about" class="about" aria-labelledby="about-title">
       <p class="section-kicker reveal">∞</p>
       <h2 id="about-title" class="section-title reveal">О проекте</h2>
@@ -75,5 +115,6 @@
   </footer>
 
   <script src="js/main.js"></script>
+  <script src="js/rag.js"></script>
 </body>
 </html>
