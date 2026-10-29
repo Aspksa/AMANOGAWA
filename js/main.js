@@ -76,6 +76,17 @@
 
   document.addEventListener("DOMContentLoaded", route);
 
+  // Без сервера база знаний не работает — говорим об этом сразу
+  if (location.protocol === "file:") {
+    const note = document.createElement("div");
+    note.className = "offline";
+    note.setAttribute("role", "alert");
+    note.innerHTML = "<strong>Сайт открыт как файл — сервер не запущен.</strong> Чат, документы, граф и настройки " +
+      "работают только через <b>AMANOGAWA.BAT</b>: он запускает сервер и сам открывает сайт по адресу http://127.0.0.1:8000/. " +
+      "Если окно BAT пишет, что Python не найден, — следуйте его подсказке.";
+    document.body.append(note);
+  }
+
   // ----- Параллакс звёзд за курсором -----
   const pointer = { x: 0, y: 0, tx: 0, ty: 0 }; // смещение, -1..1
 

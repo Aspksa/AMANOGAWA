@@ -361,13 +361,21 @@ textarea:focus-visible {
 .avatar {
   position: relative;
   align-self: end;
+  margin-bottom: clamp(16px, 4vh, 40px);
   padding: 0;
   border: 0;
   background: none;
   cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.6s var(--ease);
 }
+
+.avatar.is-dragging { cursor: grabbing; }
+.avatar.is-dragging img { animation-play-state: paused; }
+.avatar img { -webkit-user-drag: none; pointer-events: none; }
 
 /* Мягкое золотое сияние за фигурой */
 .avatar::before {
@@ -384,7 +392,7 @@ textarea:focus-visible {
 
 .avatar img {
   display: block;
-  height: min(88dvh, 900px, 118vw);
+  height: min(58dvh, 560px, 90vw);
   width: auto;
   max-width: 100%;
   object-fit: contain;
@@ -548,6 +556,32 @@ body[data-view="home"] .avatar-mini,
 /* Пока открыт чат, аватар на широком экране отходит влево */
 @media (min-width: 1100px) {
   .chat-open .view--home .avatar { transform: translateX(-200px); }
+}
+
+/* ===== Сайт открыт как файл ===== */
+
+.offline {
+  position: fixed;
+  z-index: 40;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  width: min(640px, calc(100% - 24px));
+  transform: translateX(-50%);
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-size: 0.88em;
+  line-height: 1.5;
+  color: var(--text);
+  background: rgba(60, 40, 10, 0.88);
+  border: 1px solid rgba(252, 211, 77, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.offline strong { color: #fcd34d; }
+
+@media (min-width: 721px) {
+  .offline { left: calc(50% + var(--rail) / 2); }
 }
 
 /* ===== Кнопки и поля ===== */
@@ -970,10 +1004,7 @@ textarea:focus { border-color: var(--accent); outline: none; }
   .chat-panel .btn-small { width: 34px; padding: 0; justify-content: center; }
   .chat-panel .btn-small span { display: none; }
 
-  /* Фигура крупнее экрана по ширине: хвосты слегка уходят за левый край */
-  .avatar { justify-self: start; margin-left: -9vw; }
-  .avatar img { width: 120vw; height: auto; max-width: none; max-height: 80dvh; }
-  .avatar__hint { top: -7%; right: 22%; }
+  .avatar img { height: min(52dvh, 92vw); }
   .graph__tools { width: 100%; }
   .graph__tools input { flex: 1; width: auto; }
 }
