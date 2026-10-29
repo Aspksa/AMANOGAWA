@@ -491,3 +491,4 @@ async def index():
 
 app.mount("/css", StaticFiles(directory=ROOT / "css"), name="css")
 app.mount("/js", StaticFiles(directory=ROOT / "js"), name="js")
+app.mount("/img", StaticFiles(directory=ROOT / "img"), name="img")

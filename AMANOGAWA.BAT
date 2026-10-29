@@ -1,23 +1,36 @@
 @echo off
+rem Run inside "cmd /k" so the window never closes by itself and errors stay visible.
+if /i "%~1"=="--inner" goto main
+cmd /k call "%~f0" --inner
+exit /b
+
+:main
 setlocal
 title AMANOGAWA
 cd /d "%~dp0"
 
 set "PORT=8000"
-set "URL=http://localhost:%PORT%/"
+set "URL=http://127.0.0.1:%PORT%/"
 
 echo.
 echo    A M A N O G A W A
 echo    -----------------
 echo.
 
-rem Find Python. Run a tiny command to make sure it really works: on Windows
-rem the "python" Store alias exists even when Python is not installed.
-py -3 -c "import venv" >nul 2>nul && (set "PY=py -3") && goto python
-python -c "import venv" >nul 2>nul && (set "PY=python") && goto python
+rem Started from inside a ZIP archive: Windows extracts only this file.
+if exist "server\app.py" goto files_ok
+echo    Project files not found next to AMANOGAWA.BAT.
+echo    Unpack the ZIP archive first, then run AMANOGAWA.BAT from the unpacked folder.
+goto end
 
-echo    Python not found - opening index.html directly in the browser.
-echo    Install Python 3.10+ from https://www.python.org/ to enable the knowledge base.
+:files_ok
+rem Find Python 3.10+. Run real code to check: on Windows the "python"
+rem Store alias exists even when Python is not installed.
+py -3 -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul && set "PY=py -3" && goto python
+python -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul && set "PY=python" && goto python
+
+echo    Python 3.10 or newer not found - opening index.html without the knowledge base.
+echo    Install Python from https://www.python.org/downloads/ and tick "Add python.exe to PATH".
 start "" "%~dp0index.html"
 goto end
 
@@ -25,14 +38,18 @@ goto end
 set "VPY=%~dp0.venv\Scripts\python.exe"
 
 rem 1. Virtual environment with RAG-Anything (first run takes a while).
-if not exist "%VPY%" (
-  echo    First run: creating .venv ...
-  %PY% -m venv .venv || goto static
-)
+if exist "%VPY%" goto venv_ok
+echo    First run: creating .venv ...
+%PY% -m venv .venv
+if errorlevel 1 goto install_failed
+
+:venv_ok
 fc /b requirements.txt .venv\requirements.installed >nul 2>nul && goto env
 echo    Installing RAG-Anything and dependencies. This can take 10+ minutes...
+echo.
 "%VPY%" -m pip install --upgrade pip
-"%VPY%" -m pip install -r requirements.txt || goto static
+"%VPY%" -m pip install -r requirements.txt
+if errorlevel 1 goto install_failed
 copy /y requirements.txt .venv\requirements.installed >nul
 
 :env
@@ -49,16 +66,18 @@ set "OPEN_BROWSER=1"
 "%VPY%" -m server
 echo.
 echo    Server stopped. If it failed, port %PORT% may be busy - see the messages above.
-pause
 goto end
 
-:static
+:install_failed
 echo.
-echo    Could not install RAG-Anything - starting the site without the knowledge base.
+echo    Could not install RAG-Anything - see the errors above.
+echo    Starting the site without the knowledge base.
 echo.
 start "" /b cmd /c "ping -n 3 127.0.0.1 >nul & start "" %URL%"
 %PY% -m http.server %PORT% --bind 127.0.0.1
-pause
 
 :end
-endlocal
+echo.
+echo    Press any key to close this window.
+pause >nul
+exit
