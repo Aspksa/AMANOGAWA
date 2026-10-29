@@ -39,6 +39,7 @@
     const name = (location.hash.replace(/^#\/?/, "") || "home");
     const view = views.find((v) => v.dataset.view === name) || views[0];
     views.forEach((v) => { v.hidden = v !== view; });
+    document.body.dataset.view = view.dataset.view;
     links.forEach((a) => {
       if (a.getAttribute("href") === "#/" + view.dataset.view) a.setAttribute("aria-current", "page");
       else a.removeAttribute("aria-current");
@@ -48,7 +49,7 @@
   }
 
   window.addEventListener("hashchange", route);
-  listeners.push((name) => { if (name === "chat" || name === "docs") refreshStatus(); });
+  listeners.push((name) => { if (name === "docs") refreshStatus(); });
 
   // Строка состояния подключения на страницах базы знаний
   async function refreshStatus() {

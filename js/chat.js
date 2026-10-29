@@ -171,14 +171,42 @@
     q.focus();
   });
 
-  AMA.onView(async (name) => {
-    if (name !== "chat") return;
+  // ----- Панель чата: открывается кликом по аватару -----
+  const panel = document.getElementById("chat");
+  let opener = null;
+
+  async function open() {
+    if (!panel.hidden) return;
+    opener = document.activeElement;
+    panel.hidden = false;
+    document.body.classList.add("chat-open");
+    AMA.refreshStatus();
     if (defaultMode === null) {
+      defaultMode = "";
       try {
         defaultMode = (await AMA.api("settings")).values.QUERY_MODE;
         mode.value = defaultMode;
-      } catch (_) { defaultMode = ""; }
+      } catch (_) { /* сервер не запущен — статус это покажет */ }
     }
     q.focus({ preventScroll: true });
+  }
+
+  function close() {
+    if (panel.hidden) return;
+    panel.hidden = true;
+    document.body.classList.remove("chat-open");
+    if (opener && opener.focus) opener.focus({ preventScroll: true });
+  }
+
+  document.querySelectorAll("[data-chat-open]").forEach((b) => b.addEventListener("click", open));
+  document.getElementById("chat-close").addEventListener("click", close);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+
+  // Старая ссылка #/chat открывает чат на главной
+  AMA.onView(() => {
+    if (location.hash === "#/chat") {
+      location.replace("#/home");
+      open();
+    }
   });
 })();
