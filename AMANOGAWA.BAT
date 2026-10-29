@@ -27,17 +27,33 @@ goto end
 call :find_python
 if defined PY goto python
 
-rem No Python: install it with winget (built into Windows 10/11).
-echo    Python 3.10+ not found. Installing Python 3.12 with winget - this takes a few minutes...
+rem No usable Python: download a private copy into this folder (.python).
+rem It is the official python.org build packed for NuGet: no installer, no PATH, no admin rights.
+set "LPY=%~dp0.python\tools\python.exe"
+if exist "%LPY%" goto local_python
+echo    Python 3.10+ not found. Downloading Python 3.12 into this folder (.python), about 20 MB...
 echo.
-where winget >nul 2>nul || goto no_python
-winget install -e --id Python.Python.3.12 --scope user --accept-package-agreements --accept-source-agreements
-call :find_python
+where curl >nul 2>nul || goto no_python
+where tar >nul 2>nul || goto no_python
+if not exist ".python" mkdir ".python"
+curl -L --fail --progress-bar -o ".python\python.zip" "https://www.nuget.org/api/v2/package/python/3.12.10"
+if errorlevel 1 goto no_python
+tar -xf ".python\python.zip" -C ".python"
+if errorlevel 1 goto no_python
+del ".python\python.zip" >nul 2>nul
+
+:local_python
+call :try_py "%LPY%"
 if defined PY goto python
 
 :no_python
 echo.
-echo    Could not find or install Python automatically.
+echo    Could not find or download Python automatically.
+echo    Details for support:
+where python py 2>&1
+reg query "HKCU\Software\Python\PythonCore" /s /v ExecutablePath 2>&1 | findstr /i "PythonCore ExecutablePath"
+reg query "HKLM\Software\Python\PythonCore" /s /v ExecutablePath 2>&1 | findstr /i "PythonCore ExecutablePath"
+echo.
 echo    1. Download Python 3.12 from https://www.python.org/downloads/
 echo    2. In the installer tick "Add python.exe to PATH" and press Install Now.
 echo    3. Run AMANOGAWA.BAT again.
@@ -49,6 +65,9 @@ goto end
 :python
 echo    Python: %PY%
 set "VPY=%~dp0.venv\Scripts\python.exe"
+set "MARK=.venv\requirements.installed"
+rem The private .python copy belongs to this project: install packages straight into it.
+if /i "%PY:"=%"=="%~dp0.python\tools\python.exe" set "VPY=%~dp0.python\tools\python.exe" & set "MARK=.python\requirements.installed" & goto venv_ok
 
 rem 1. Virtual environment with RAG-Anything (first run takes a while).
 if exist "%VPY%" goto venv_ok
@@ -57,13 +76,14 @@ echo    First run: creating .venv ...
 if errorlevel 1 goto install_failed
 
 :venv_ok
-fc /b requirements.txt .venv\requirements.installed >nul 2>nul && goto env
+fc /b requirements.txt %MARK% >nul 2>nul && goto env
 echo    Installing RAG-Anything and dependencies. This can take 10+ minutes...
 echo.
+"%VPY%" -m pip --version >nul 2>nul || "%VPY%" -m ensurepip --upgrade
 "%VPY%" -m pip install --upgrade pip
 "%VPY%" -m pip install -r requirements.txt
 if errorlevel 1 goto install_failed
-copy /y requirements.txt .venv\requirements.installed >nul
+copy /y requirements.txt %MARK% >nul
 
 :env
 rem 2. Settings (Cloud.ru key, models) live in .env on this computer.
@@ -99,6 +119,8 @@ rem Sets PY to a working Python 3.10+ command, or leaves it empty.
 rem Each candidate runs real code: the "python" Store alias exists even without Python.
 :find_python
 set "PY="
+call :try_py "%~dp0.python\tools\python.exe"
+if defined PY exit /b
 py -3 -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul && set "PY=py -3" && exit /b
 python -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul && set "PY=python" && exit /b
 rem Not in PATH: look where installers put Python (registry first, then usual folders).
